@@ -36,6 +36,9 @@ class Deck:
             s += card.__str__() + "\n"
         return s
     
+    def __len__(self):
+        return len(self.cards)
+    
     def shuffle(self):
         ''' shuffle cards in place, return void '''
         random.shuffle(self.cards)
@@ -49,17 +52,30 @@ class Hand:
     def __init__(self):
         self.cards = []
         self.total = 0
+        self.aces = 0
+        
+    def __str__(self):
+        s = ""
+        for card in self.cards:
+            s += card.__str__() + "\n"
+        s+= f'total = {self.total}'
+        return s
     
     def add_card(self, card):
         ''' append the new card, update hand total, return void '''
         self.cards.append(card)
         self.total += card.val
+        # check if its an ace
+        if card.name == "Ace":
+            self.aces += 1
     
     def adjust_for_ace(self):
         ''' check if hand contains an Ace, and if total has busted, adjust ace 11 -> 1, return void '''
-        for card in self.cards:
-            if card.name == "Ace" && self.total > 21:
-                card.val = 1
+        while self.total > 21 and self.aces:
+            self.total -= 10
+            self.aces -= 1
+            
+                
 
 class Chips:
     def __init__(self):
@@ -78,6 +94,10 @@ class Chips:
         ''' return bet back to bank '''
         self.bank += self.bet
 
+            
+
+################### FUNCTIONS ######################    
+
 def make_bet(chips):
     while True:
         try:
@@ -89,22 +109,25 @@ def make_bet(chips):
         except TypeError:
             print('Please enter a number')
     chips.bet = bet
-    print('You bet {bet}')
-    
+    print(f'You bet {bet}')
 
-################### FUNCTIONS ######################    
 
 def hit(deck,hand):
     ''' take a card from top of the deck and add to player hand, return void '''
     # deal a new card, remove from top of deck
     new_card = deck.deal_card()
     # add it to hand 
-    hand.add_card()
+    hand.add_card(new_card)
+    hand.adjust_for_ace()
     
 def prompt(deck,hand):
     ''' ask a player if they will hit or stand '''
     global playing #to switch control if player stands
     
+    # print current hand
+    print(hand)
+    
+    #prompt hit or stand
     move = input("hit or stand? ")
     if (move != 'hit' and move != 'stand'):
         # if player enters invalid command
@@ -118,27 +141,70 @@ def prompt(deck,hand):
 
 ################### END HAND FUNCTIONS ######################  
         
-def player_busts(player_chips, dealer_chips):
+def player_loses(chips):
+    global playing
     player_chips.lose_bet()
-    dealer_chips.win_bet()
+    print("player lost")
+    playing = False
 
-def player_wins(player_chips, dealer_chips):
+def player_wins(chips):
+    global playing
     player_chips.win_bet()
-    dealer_chips.lose_bet()
-
-def push(player_chips, dealer_chips):
-    player_chips.push()
-    dealer_chips.push()
-
+    print('player won')
+    playing = False
     
+def compare_hands(player_hand, dealer_hand, chips):
+    if player_hand.total > dealer_hand.total:
+        player_wins(chips)
+    elif player_hand.total < dealer_hand.total:
+        player_loses(chip)
+    else:
+        chips.push()
+        
     
 ################### PLAY GAME ######################     
 
 while True:
+    # set up deck and shuffle it
+    deck = Deck()
+    deck.shuffle()
+    
+    #set up chips
+    player_chips = Chips()
+    
+    #set up hands for player and dealer
+    player_hand = Hand()
+    dealer_hand = Hand()
+    
+    #deal cards to player and dealer
+    player_hand.add_card(deck.deal_card())
+    dealer_hand.add_card(deck.deal_card())
+    player_hand.add_card(deck.deal_card())
+    dealer_hand.add_card(deck.deal_card())
+    
+    #take bet
+    make_bet(player_chips)
+    
     
     ### PLAYERS ROUND
-    
+    while playing:
+        prompt(deck,player_hand)
+        
+        if player_hand.total > 21:
+            player_loses(player_chips)
+            
+
     ### DEALERS ROUND
-    
+    if player_hand.total <= 21:
+        
+        while dealer_hand.total < 17:
+            print(dealer_hand)
+            hit(deck, dealer_hand)
+            if dealer_hand.total > 21:
+                player_wins(player_chips)
+                break
+
+        compare_hands(player_hand, dealer_hand, player_chips)
+
     break
     
